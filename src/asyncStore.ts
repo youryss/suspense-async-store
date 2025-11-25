@@ -1,19 +1,59 @@
 // src/asyncStore.ts
 
-/** A key used to identify cached entries. */
+/**
+ * A key used to identify cached entries.
+ * Can be a string or an array of values (which will be JSON stringified).
+ *
+ * @example
+ * ```ts
+ * // String key
+ * store.get("user-123", fetcher);
+ *
+ * // Array key (recommended for structured keys)
+ * store.get(["users", userId], fetcher);
+ * ```
+ */
 export type Key = string | readonly unknown[];
 
-/** Context passed into fetchers, currently just AbortSignal. */
+/**
+ * Context passed into fetchers, providing AbortSignal for request cancellation.
+ *
+ * @example
+ * ```ts
+ * const fetcher = async ({ signal }) => {
+ *   const res = await fetch(url, { signal });
+ *   return res.json();
+ * };
+ * ```
+ */
 export interface FetchContext {
+  /** AbortSignal that can be used to cancel the request */
   signal: AbortSignal;
 }
 
 /**
- * A fetcher is any function that:
- * - Accepts a FetchContext (for AbortSignal)
- * - Returns a Promise of data
+ * A fetcher function that accepts a FetchContext and returns a Promise.
+ * The fetcher should use the provided signal for request cancellation.
  *
- * It can wrap fetch, axios, or any custom client.
+ * @template T - The type of data returned by the fetcher
+ * @param ctx - FetchContext containing AbortSignal
+ * @returns Promise resolving to the fetched data
+ *
+ * @example
+ * ```ts
+ * // With native fetch
+ * const fetcher: Fetcher<User> = async ({ signal }) => {
+ *   const res = await fetch("/api/user", { signal });
+ *   if (!res.ok) throw new Error("Failed to fetch");
+ *   return res.json();
+ * };
+ *
+ * // With axios
+ * const fetcher: Fetcher<User> = async ({ signal }) => {
+ *   const res = await axios.get("/api/user", { signal });
+ *   return res.data;
+ * };
+ * ```
  */
 export type Fetcher<T> = (ctx: FetchContext) => Promise<T>;
 
@@ -22,16 +62,60 @@ interface Entry<T> {
   controller: AbortController;
 }
 
-/** Suspense-style Resource for React 18 (read throws while pending/error). */
+/**
+ * Suspense-style Resource for React 18.
+ * The `read()` method throws a Promise while pending, throws an Error on failure,
+ * or returns the value on success.
+ *
+ * @template T - The type of data in the resource
+ *
+ * @example
+ * ```tsx
+ * // React 18 usage
+ * function UserDetails({ id }: { id: string }) {
+ *   const resource = store.getResource<User>(["user", id], fetcher);
+ *   const user = resource.read(); // throws Promise or Error, or returns User
+ *   return <div>{user.name}</div>;
+ * }
+ * ```
+ */
 export interface Resource<T> {
-  read(): T; // may throw Promise or Error
+  /**
+   * Reads the resource value.
+   * - Throws a Promise while the request is pending (triggers Suspense)
+   * - Throws an Error if the request failed (triggers ErrorBoundary)
+   * - Returns the value if the request succeeded
+   *
+   * @returns The resolved value of type T
+   * @throws Promise while pending
+   * @throws Error if the request failed
+   */
+  read(): T;
 }
 
 /**
- * Create a framework-agnostic async store:
- * - Caches Promises by key
- * - Supports AbortController
- * - Exposes Promise and Resource APIs
+ * Creates a new async store instance for managing cached async data.
+ *
+ * The store provides:
+ * - Automatic Promise caching by key
+ * - AbortController support for request cancellation
+ * - React 19+ support via `get()` returning Promises (use with `use()`)
+ * - React 18 support via `getResource()` returning Resources (use with Suspense)
+ *
+ * @returns An async store instance with `get`, `getResource`, `invalidate`, and `clear` methods
+ *
+ * @example
+ * ```ts
+ * // Create a store instance
+ * const api = createAsyncStore();
+ *
+ * // React 19+ usage
+ * const user = use(api.get(["user", id], fetcher));
+ *
+ * // React 18 usage
+ * const resource = api.getResource(["user", id], fetcher);
+ * const user = resource.read();
+ * ```
  */
 export function createAsyncStore() {
   const cache = new Map<string, Entry<any>>();
@@ -44,7 +128,29 @@ export function createAsyncStore() {
   }
 
   /**
-   * Get a cached Promise for the given key, or create it with the fetcher.
+   * Gets a cached Promise for the given key, or creates it with the fetcher.
+   * Subsequent calls with the same key will return the cached Promise.
+   *
+   * Designed for React 19+ with the `use()` hook.
+   *
+   * @template T - The type of data returned by the fetcher
+   * @param key - Cache key (string or array)
+   * @param fetcher - Function that fetches the data
+   * @returns Promise that resolves to the fetched data
+   *
+   * @example
+   * ```tsx
+   * // React 19+
+   * function UserDetails({ id }: { id: string }) {
+   *   const user = use(
+   *     api.get(["user", id], async ({ signal }) => {
+   *       const res = await fetch(`/api/users/${id}`, { signal });
+   *       return res.json();
+   *     })
+   *   );
+   *   return <div>{user.name}</div>;
+   * }
+   * ```
    */
   function get<T>(key: Key, fetcher: Fetcher<T>): Promise<T> {
     const k = keyToString(key);
@@ -69,7 +175,29 @@ export function createAsyncStore() {
   }
 
   /**
-   * React 18 helper: wrap the cached Promise in a Suspense-style Resource.
+   * Gets a Suspense-compatible Resource for the given key.
+   * The Resource's `read()` method throws a Promise while pending (for Suspense)
+   * or throws an Error on failure (for ErrorBoundary).
+   *
+   * Designed for React 18 where `use()` is not available.
+   *
+   * @template T - The type of data returned by the fetcher
+   * @param key - Cache key (string or array)
+   * @param fetcher - Function that fetches the data
+   * @returns Resource with a `read()` method
+   *
+   * @example
+   * ```tsx
+   * // React 18
+   * function UserDetails({ id }: { id: string }) {
+   *   const resource = api.getResource(["user", id], async ({ signal }) => {
+   *     const res = await fetch(`/api/users/${id}`, { signal });
+   *     return res.json();
+   *   });
+   *   const user = resource.read(); // throws Promise or Error, or returns User
+   *   return <div>{user.name}</div>;
+   * }
+   * ```
    */
   function getResource<T>(key: Key, fetcher: Fetcher<T>): Resource<T> {
     const promise = get<T>(key, fetcher);
@@ -77,9 +205,28 @@ export function createAsyncStore() {
   }
 
   /**
-   * Invalidate a single entry:
-   * - Abort in-flight request
-   * - Remove from cache
+   * Invalidates a cached entry by key.
+   * - Aborts any in-flight request for this key
+   * - Removes the entry from the cache
+   *
+   * Useful for manual cache invalidation, retry logic, or when data becomes stale.
+   *
+   * @param key - Cache key to invalidate
+   *
+   * @example
+   * ```ts
+   * // Invalidate after mutation
+   * await updateUser(userId, data);
+   * api.invalidate(["user", userId]);
+   *
+   * // Retry on error
+   * try {
+   *   const user = use(api.get(["user", id], fetcher));
+   * } catch (error) {
+   *   api.invalidate(["user", id]);
+   *   // Retry...
+   * }
+   * ```
    */
   function invalidate(key: Key): void {
     const k = keyToString(key);
@@ -91,9 +238,20 @@ export function createAsyncStore() {
   }
 
   /**
-   * Clear the entire cache:
-   * - Abort all in-flight requests
-   * - Remove everything from cache
+   * Clears the entire cache.
+   * - Aborts all in-flight requests
+   * - Removes all entries from the cache
+   *
+   * Useful for logout, reset, or when you want to start fresh.
+   *
+   * @example
+   * ```ts
+   * // Clear cache on logout
+   * function handleLogout() {
+   *   api.clear();
+   *   // ... logout logic
+   * }
+   * ```
    */
   function clear(): void {
     for (const [, entry] of cache) {

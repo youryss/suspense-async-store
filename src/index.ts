@@ -7,4 +7,3 @@ export {
   type Fetcher,
   type Resource,
 } from "./asyncStore";
-
