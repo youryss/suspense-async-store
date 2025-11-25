@@ -1,0 +1,23 @@
+# Default owner for all files
+* @youryss
+
+# Source code
+/src/ @youryss
+
+# Configuration files
+package.json @youryss
+package-lock.json @youryss
+tsconfig.json @youryss
+tsup.config.* @youryss
+vitest.config.* @youryss
+eslint.config.* @youryss
+.prettierrc.* @youryss
+
+# Documentation
+README.md @youryss
+CHANGELOG.md @youryss
+LICENSE @youryss
+
+# GitHub workflows
+/.github/ @youryss
+
