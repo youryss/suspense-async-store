@@ -1,6 +1,6 @@
 {
   "name": "suspense-async-store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,9 +29,15 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
     "type-check": "tsc --noEmit",
+    "prepare": "husky",
+    "version:patch": "HUSKY=0 npm version patch",
+    "version:minor": "HUSKY=0 npm version minor",
+    "version:major": "HUSKY=0 npm version major",
+    "publish:patch": "npm run version:patch && npm publish",
+    "publish:minor": "npm run version:minor && npm publish",
+    "publish:major": "npm run version:major && npm publish",
     "prepublishOnly": "npm run clean && npm run build && npm run test:run && npm run type-check && npm run lint",
-    "verify": "npm run type-check && npm run lint && npm run test:run && npm run build",
-    "prepare": "husky"
+    "verify": "npm run type-check && npm run lint && npm run test:run && npm run build"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
