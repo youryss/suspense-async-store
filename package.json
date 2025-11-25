@@ -2,18 +2,18 @@
   "name": "suspense-async-store",
   "version": "0.1.0",
   "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
+      "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
     "./fetch-helpers": {
       "types": "./dist/fetch-helpers.d.ts",
-      "import": "./dist/fetch-helpers.mjs",
+      "import": "./dist/fetch-helpers.js",
       "require": "./dist/fetch-helpers.cjs"
     }
   },

@@ -86,9 +86,11 @@ jobs:
       - name: Check build artifacts
         run: |
           test -f dist/index.cjs || exit 1
-          test -f dist/index.mjs || exit 1
+          test -f dist/index.js || exit 1
           test -f dist/index.d.ts || exit 1
+          test -f dist/index.d.cts || exit 1
           test -f dist/fetch-helpers.cjs || exit 1
-          test -f dist/fetch-helpers.mjs || exit 1
+          test -f dist/fetch-helpers.js || exit 1
           test -f dist/fetch-helpers.d.ts || exit 1
-
+          test -f dist/fetch-helpers.d.cts || exit 1
+          echo "All build artifacts present ✓"
