@@ -33,13 +33,11 @@
     "version:patch": "npm version patch",
     "version:minor": "npm version minor",
     "version:major": "npm version major",
-    "prepublishOnly": "npm run clean && npm run build && npm run test:run",
     "publish:patch": "npm run version:patch && npm publish",
     "publish:minor": "npm run version:minor && npm publish",
-    "publish:major": "npm run version:major && npm publish"
+    "publish:major": "npm run version:major && npm publish",
     "prepublishOnly": "npm run clean && npm run build && npm run test:run && npm run type-check && npm run lint",
-    "verify": "npm run type-check && npm run lint && npm run test:run && npm run build",
-    "prepare": "husky"
+    "verify": "npm run type-check && npm run lint && npm run test:run && npm run build"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
