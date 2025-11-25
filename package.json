@@ -2,18 +2,18 @@
   "name": "suspense-async-store",
   "version": "0.1.0",
   "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
+      "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
     "./fetch-helpers": {
       "types": "./dist/fetch-helpers.d.ts",
-      "import": "./dist/fetch-helpers.mjs",
+      "import": "./dist/fetch-helpers.js",
       "require": "./dist/fetch-helpers.cjs"
     }
   },
@@ -29,6 +29,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
     "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run clean && npm run build && npm run test:run && npm run type-check && npm run lint",
+    "verify": "npm run type-check && npm run lint && npm run test:run && npm run build",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -56,13 +58,36 @@
     "typescript-eslint": "^8.48.0",
     "vitest": "^3.2.4"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "keywords": [
     "react",
     "suspense",
     "async",
-    "store"
+    "store",
+    "cache",
+    "fetch",
+    "react-18",
+    "react-19",
+    "typescript",
+    "abort-controller"
   ],
   "author": "Youry Stancato",
   "license": "ISC",
-  "description": "A suspense-style async store for React 18 and beyond"
+  "description": "A suspense-style async store for React 18 and beyond",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourystancato/react-fetch-cache.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourystancato/react-fetch-cache/issues"
+  },
+  "homepage": "https://github.com/yourystancato/react-fetch-cache#readme"
 }
