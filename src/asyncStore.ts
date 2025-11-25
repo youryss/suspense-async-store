@@ -118,7 +118,7 @@ export interface Resource<T> {
  * ```
  */
 export function createAsyncStore() {
-  const cache = new Map<string, Entry<any>>();
+  const cache = new Map<string, Entry<unknown>>();
 
   /**
    * Normalize a Key into a string for Map indexing.
@@ -277,7 +277,7 @@ export function createAsyncStore() {
 function createResourceFromPromise<T>(promise: Promise<T>): Resource<T> {
   let status: "pending" | "success" | "error" = "pending";
   let value: T;
-  let error: any;
+  let error: unknown;
 
   const suspender = promise.then(
     (v) => {
@@ -307,6 +307,12 @@ function createResourceFromPromise<T>(promise: Promise<T>): Resource<T> {
  */
 function isAbortError(err: unknown): boolean {
   if (err instanceof DOMException && err.name === "AbortError") return true;
-  if ((err as any)?.code === "ERR_CANCELED") return true;
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    err.code === "ERR_CANCELED"
+  )
+    return true;
   return false;
 }
