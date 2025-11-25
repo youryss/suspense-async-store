@@ -90,10 +90,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourystancato/react-fetch-cache.git"
+    "url": "https://github.com/youryss/suspense-async-store.git"
   },
   "bugs": {
-    "url": "https://github.com/yourystancato/react-fetch-cache/issues"
+    "url": "https://github.com/youryss/suspense-async-store/issues"
   },
-  "homepage": "https://github.com/yourystancato/react-fetch-cache#readme"
+  "homepage": "https://github.com/youryss/suspense-async-store#readme"
 }
