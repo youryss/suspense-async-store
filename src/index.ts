@@ -6,4 +6,6 @@ export {
   type FetchContext,
   type Fetcher,
   type Resource,
+  type CacheStrategy,
+  type AsyncStoreConfig,
 } from "./asyncStore";

@@ -297,4 +297,242 @@ describe("createAsyncStore", () => {
       expect(result).toBe("new-data");
     });
   });
+
+  describe("dispose", () => {
+    it("should stop cleanup timers and clear cache", async () => {
+      const store = createAsyncStore({
+        strategy: { type: "reference-counting", cleanupInterval: 100 },
+      });
+
+      const fetcher = vi.fn(async () => "data");
+      await store.get("key", fetcher);
+
+      store.dispose();
+
+      // Cache should be cleared
+      const fetcher2 = vi.fn(async () => "new-data");
+      const result = await store.get("key", fetcher2);
+      expect(result).toBe("new-data");
+      expect(fetcher2).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle dispose on manual strategy", () => {
+      const store = createAsyncStore({ strategy: { type: "manual" } });
+      expect(() => store.dispose()).not.toThrow();
+    });
+  });
+
+  describe("Cache Strategies", () => {
+    describe("reference-counting strategy", () => {
+      it("should be the default strategy", async () => {
+        const store = createAsyncStore();
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+      });
+
+      it("should track references", async () => {
+        const store = createAsyncStore({
+          strategy: { type: "reference-counting", cleanupInterval: 100 },
+        });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+
+        const ref1 = {};
+        const ref2 = {};
+
+        store.addReference("key", ref1);
+        store.addReference("key", ref2);
+
+        // Data should still be cached
+        await store.get("key", fetcher);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+
+        store.dispose();
+      });
+
+      it("should remove references", async () => {
+        const store = createAsyncStore({
+          strategy: { type: "reference-counting", cleanupInterval: 100 },
+        });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+
+        const ref = {};
+        store.addReference("key", ref);
+        store.removeReference("key", ref);
+
+        store.dispose();
+      });
+
+      it("should clean up unreferenced entries after grace period", async () => {
+        const store = createAsyncStore({
+          strategy: {
+            type: "reference-counting",
+            cleanupInterval: 50,
+            gracePeriod: 100,
+          },
+        });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+
+        // Wait for cleanup interval + grace period
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        // Should be cleaned up and refetch
+        const fetcher2 = vi.fn(async () => "new-data");
+        const result = await store.get("key", fetcher2);
+        expect(result).toBe("new-data");
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+
+        store.dispose();
+      });
+    });
+
+    describe("LRU strategy", () => {
+      it("should evict least recently used entries when max size reached", async () => {
+        const store = createAsyncStore({
+          strategy: { type: "lru", maxSize: 2 },
+        });
+
+        const fetcher1 = vi.fn(async () => "data1");
+        const fetcher2 = vi.fn(async () => "data2");
+        const fetcher3 = vi.fn(async () => "data3");
+
+        await store.get("key1", fetcher1);
+        await store.get("key2", fetcher2);
+        expect(fetcher1).toHaveBeenCalledTimes(1);
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+
+        // Adding key3 should evict key1 (least recently used)
+        await store.get("key3", fetcher3);
+        expect(fetcher3).toHaveBeenCalledTimes(1);
+
+        // key2 and key3 should still be cached
+        await store.get("key2", fetcher2);
+        await store.get("key3", fetcher3);
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+        expect(fetcher3).toHaveBeenCalledTimes(1);
+
+        // key1 should be evicted, so it should refetch
+        const fetcher1Again = vi.fn(async () => "data1-new");
+        await store.get("key1", fetcher1Again);
+        expect(fetcher1Again).toHaveBeenCalledTimes(1);
+      });
+
+      it("should update last accessed time on cache hit", async () => {
+        const store = createAsyncStore({
+          strategy: { type: "lru", maxSize: 2 },
+        });
+
+        const fetcher1 = vi.fn(async () => "data1");
+        const fetcher2 = vi.fn(async () => "data2");
+        const fetcher3 = vi.fn(async () => "data3");
+
+        await store.get("key1", fetcher1);
+        await store.get("key2", fetcher2);
+        expect(fetcher1).toHaveBeenCalledTimes(1);
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+
+        // Access key1 again to make it more recently used
+        await store.get("key1", fetcher1);
+        expect(fetcher1).toHaveBeenCalledTimes(1); // Still cached
+
+        // Now key3 should evict key2 (least recently used)
+        await store.get("key3", fetcher3);
+
+        // key1 and key3 should be cached
+        await store.get("key1", fetcher1);
+        await store.get("key3", fetcher3);
+        expect(fetcher1).toHaveBeenCalledTimes(1);
+        expect(fetcher3).toHaveBeenCalledTimes(1);
+
+        // key2 should be evicted
+        const fetcher2Again = vi.fn(async () => "data2-new");
+        await store.get("key2", fetcher2Again);
+        expect(fetcher2Again).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("TTL strategy", () => {
+      it("should expire entries after TTL", async () => {
+        const store = createAsyncStore({
+          strategy: { type: "ttl", ttl: 100, cleanupInterval: 50 },
+        });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+
+        // Access before TTL expires
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await store.get("key", fetcher);
+        expect(fetcher).toHaveBeenCalledTimes(1); // Still cached
+
+        // Wait for TTL to expire
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Should refetch after TTL
+        const fetcher2 = vi.fn(async () => "new-data");
+        const result = await store.get("key", fetcher2);
+        expect(result).toBe("new-data");
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+
+        store.dispose();
+      });
+
+      it("should clean up expired entries in background", async () => {
+        const store = createAsyncStore({
+          strategy: { type: "ttl", ttl: 50, cleanupInterval: 30 },
+        });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+
+        // Wait for cleanup to run
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Should refetch
+        const fetcher2 = vi.fn(async () => "new-data");
+        await store.get("key", fetcher2);
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+
+        store.dispose();
+      });
+    });
+
+    describe("manual strategy", () => {
+      it("should not automatically clean up entries", async () => {
+        const store = createAsyncStore({ strategy: { type: "manual" } });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+
+        // Wait to ensure no cleanup happens
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        // Should still be cached
+        await store.get("key", fetcher);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+      });
+
+      it("should require manual invalidation", async () => {
+        const store = createAsyncStore({ strategy: { type: "manual" } });
+
+        const fetcher = vi.fn(async () => "data");
+        await store.get("key", fetcher);
+
+        // Manually invalidate
+        store.invalidate("key");
+
+        // Should refetch
+        const fetcher2 = vi.fn(async () => "new-data");
+        await store.get("key", fetcher2);
+        expect(fetcher2).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
