@@ -62,8 +62,6 @@ function UserDetails({ id }: { id: string }) {
 }
 ```
 
-<<<<<<< HEAD
-
 ## Why Cache Promises with Suspense?
 
 When using React Suspense, **you must cache promise calls** to prevent infinite re-render loops. Here's why:
@@ -72,115 +70,17 @@ When using React Suspense, **you must cache promise calls** to prevent infinite 
 
 Without caching, each render creates a **new promise**, causing Suspense to suspend repeatedly:
 
-````tsx
+```tsx
 // ❌ This will cause infinite re-renders!
 function UserDetails({ id }: { id: string }) {
   // Every render creates a NEW promise
   const promise = fetch(`/api/users/${id}`).then((res) => res.json());
   const user = use(promise); // Suspense suspends on this promise
 
-=======
-## Memory Management
-
-Unlike many cache libraries, `suspense-async-store` provides **automatic memory leak prevention** through configurable cache strategies. By default, the library uses reference counting to automatically clean up cache entries when components unmount.
-
-### Cache Strategies
-
-Configure cache strategy when creating the store:
-
-#### Reference Counting (Default - Recommended)
-
-Automatically tracks component usage and cleans up entries when no longer referenced. This prevents memory leaks in long-running SPAs while keeping frequently-used data cached.
-
-```ts
-import { createAsyncStore } from "suspense-async-store";
-
-const api = createAsyncStore({
-  strategy: {
-    type: "reference-counting",
-    cleanupInterval: 5000, // Check for cleanup every 5 seconds (default)
-    gracePeriod: 1000, // Wait 1 second before cleanup (default)
-  },
-});
-
-// Or use the default:
-const api = createAsyncStore(); // Same as above
-````
-
-**Best for:** Most applications, especially SPAs with many routes/components.
-
-#### LRU (Least Recently Used)
-
-Keeps only the N most recently accessed entries. When the cache reaches max size, the least recently used entry is evicted.
-
-```ts
-const api = createAsyncStore({
-  strategy: {
-    type: "lru",
-    maxSize: 100, // Keep only 100 most recent entries
-  },
-});
-```
-
-**Best for:** Applications with predictable memory constraints or many unique cache keys.
-
-#### TTL (Time To Live)
-
-Entries expire after a fixed time period. Useful for data that becomes stale quickly.
-
-```ts
-const api = createAsyncStore({
-  strategy: {
-    type: "ttl",
-    ttl: 5 * 60 * 1000, // Expire after 5 minutes
-    cleanupInterval: 60 * 1000, // Check for expired entries every minute (optional)
-  },
-});
-```
-
-**Best for:** Data that changes frequently on the server (stock prices, live feeds, etc.).
-
-#### Manual
-
-No automatic cleanup. You must manually invalidate entries using `invalidate()` or `clear()`.
-
-```ts
-const api = createAsyncStore({
-  strategy: { type: "manual" },
-});
-
-// Manual cleanup
-api.invalidate(["user", userId]); // Invalidate specific entry
-api.clear(); // Clear entire cache
-```
-
-**Best for:** Simple apps with limited data or when you need full control over cache lifecycle.
-
-### React Hooks for Automatic Lifecycle
-
-For the reference-counting strategy to work optimally, use the provided React hooks that automatically register/unregister component references:
-
-```tsx
-import { createAsyncStore } from "suspense-async-store";
-import { useAsyncValue } from "suspense-async-store/hooks";
-import { use, Suspense } from "react";
-
-const api = createAsyncStore(); // reference-counting by default
-
-function UserDetails({ id }: { id: string }) {
-  // Automatically tracks this component's usage
-  const userPromise = useAsyncValue(api, ["user", id], async ({ signal }) => {
-    const res = await fetch(`/api/users/${id}`, { signal });
-    return res.json();
-  });
-
-  const user = use(userPromise);
->>>>>>> 9b8cc52c9cb1023b6ebd3965853375c130fa3a6e
   return <div>{user.name}</div>;
 }
 ```
 
-<<<<<<< HEAD
 **What happens:**
 
 1. Component renders → creates new promise → Suspense suspends
@@ -215,7 +115,7 @@ function UserDetails({ id }: { id: string }) {
 
 ### Key Takeaway
 
-# **Suspense needs stable promise references** to track loading state. Without caching, you get a new promise on every render, which Suspense treats as a new loading state, causing infinite loops. Caching ensures the same promise is reused for the same request, allowing Suspense to work correctly.
+**Suspense needs stable promise references** to track loading state. Without caching, you get a new promise on every render, which Suspense treats as a new loading state, causing infinite loops. Caching ensures the same promise is reused for the same request, allowing Suspense to work correctly.
 
 For React 18, use `useAsyncResource`:
 
@@ -275,7 +175,6 @@ This is especially important in development with hot module reloading to prevent
 
 4. **Call dispose() on unmount** - Prevents timer leaks in development and when dynamically creating stores
 5. **Monitor cache size** - In production, monitor your cache behavior to tune strategy parameters
-   > > > > > > > 9b8cc52c9cb1023b6ebd3965853375c130fa3a6e
 
 ## Optional Fetch Helpers
 
@@ -758,3 +657,7 @@ ISC
 ## Contributing
 
 Issues and pull requests are welcome on [GitHub](https://github.com/youryss/suspense-async-store).
+
+```
+
+```
