@@ -60,6 +60,61 @@ function UserDetails({ id }: { id: string }) {
 }
 ```
 
+## Why Cache Promises with Suspense?
+
+When using React Suspense, **you must cache promise calls** to prevent infinite re-render loops. Here's why:
+
+### The Problem: Without Caching
+
+Without caching, each render creates a **new promise**, causing Suspense to suspend repeatedly:
+
+```tsx
+// ❌ This will cause infinite re-renders!
+function UserDetails({ id }: { id: string }) {
+  // Every render creates a NEW promise
+  const promise = fetch(`/api/users/${id}`).then((res) => res.json());
+  const user = use(promise); // Suspense suspends on this promise
+
+  return <div>{user.name}</div>;
+}
+```
+
+**What happens:**
+
+1. Component renders → creates new promise → Suspense suspends
+2. Promise resolves → component re-renders
+3. Component renders again → creates **another new promise** → Suspense suspends again
+4. **Infinite loop!** 🔄
+
+### The Solution: With Caching
+
+By caching promises by key, the **same promise** is returned for the same request:
+
+```tsx
+// ✅ This works correctly!
+const api = createAsyncStore();
+
+function UserDetails({ id }: { id: string }) {
+  // Same key = same cached promise
+  const user = use(
+    api.get(["user", id], createJsonFetcher(`/api/users/${id}`))
+  );
+
+  return <div>{user.name}</div>;
+}
+```
+
+**What happens:**
+
+1. First render → creates promise, caches it by key `["user", id]` → Suspense suspends
+2. Promise resolves → component re-renders
+3. Second render → **returns the same cached promise** → Suspense recognizes it's already resolved → renders data
+4. **Success!** ✅
+
+### Key Takeaway
+
+**Suspense needs stable promise references** to track loading state. Without caching, you get a new promise on every render, which Suspense treats as a new loading state, causing infinite loops. Caching ensures the same promise is reused for the same request, allowing Suspense to work correctly.
+
 ## Optional Fetch Helpers
 
 The library provides optional helper functions for native `fetch` API. These are **completely optional** - the core library is framework-agnostic and works with any HTTP client.
